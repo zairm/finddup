@@ -7,7 +7,9 @@ Written for python3
 ## Usage
 ~~~~
 Usage: cmd_handler.py [OPTION]... [FILE]...
-Finds duplicate FILEs (defaults to current directory)
+Finds duplicate files in FILEs and outputs them in groups
+Each FILE can a path to a directory or a file
+Given FILEs will not be filtered out given any OPTION
 
 Options:
   -h, --help            show this help message and exit
@@ -17,6 +19,11 @@ Options:
                         decending
   --lsize               List file size of a single file in each group along
                         with the groups
-  --lsizef=MODE         List file size in format MODE (defaults to bytes) as
-                        follows;k (kilobytes), m (megabytes)
+  --lsizef=MODE         If --lsize if given; list file size in format MODE
+                        (defaults to bytes) as follows; k (kilobytes), m
+                        (megabytes)
+  --minsize=MIN_SIZE    Only check files with byte size atleast MIN (MIN = 0
+                        is ignored)
+  --maxsize=MAX_SIZE    Only check files with byte size at most MAX (MAX = 0
+                        is ignored)
 ~~~~
