@@ -8,14 +8,7 @@ class Simple_Classifier(Classifier):
     def __init__(self):
         self._groups = []
 
-    def insert(self, fpath):
-        # TODO Shouldn't be error handling here. Fix it.
-        try:
-            size = os.path.getsize(fpath)
-        except FileNotFoundError:
-            outstr = "Skipping not-found file: " + fpath
-            print(outstr, file=sys.stdout)
-            return
+    def insert(self, fpath, size):
         file_hash = ""
         for group in self._groups:
             if (group.size == size):
@@ -44,5 +37,6 @@ def get_hash(fpath):
     while (len(buff) > 0):
         md5.update(buff)
         buff = fl.read(read_size)
+    fl.close()
     return md5.digest()
 
