@@ -1,6 +1,9 @@
 import optparse, os, sys
 from simple_classifier import Simple_Classifier
 
+# TODO Most (if not all) permission exceptions seem to occour in classifier's
+# insert. Check permissions before senselessly adding a file to claissifier
+
 def main():
     usage = "Usage: %prog [OPTION]... [FILE]...\n" \
             + "Finds duplicate files in FILEs and outputs them in groups\n" \
@@ -9,12 +12,14 @@ def main():
             + "Ignores all symlinks"
     parser = optparse.OptionParser(usage=usage)
     parser.set_defaults(recurse=False, hidden=False, sort="", list_size=False, \
-        size_format="", min_size=0, max_size=0)
+        size_format="", min_size=0, max_size=0, verbose=False)
 
     parser.add_option("-r", "--recurse", action="store_true", dest="recurse",
         help="Recursively check files in subdirectories")
     parser.add_option("-a", "--all", action="store_true", dest="hidden",
         help="Include directories and files begining with .")
+    parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
+        help="Output all errors to stderr as they occour (disabled by default)")
     parser.add_option("-s", "--sort", action="store", type="string", dest="sort",
         help="Sort group by size: ASCE for ascending. DESC for decending")
     parser.add_option("--lsize", action="store_true", dest="list_size",
@@ -26,6 +31,7 @@ def main():
         help="Only check files with byte size atleast MIN (MIN = 0 is ignored)")
     parser.add_option("--maxsize", action="store", type="int", dest="max_size",
         help="Only check files with byte size at most MAX (MAX = 0 is ignored)")
+
 
     (opts, paths) = parser.parse_args()
     _check_opts(opts)
@@ -101,8 +107,8 @@ def _file_size(fpath, opts):
 
 def _is_symlink(path, opts):
     if os.path.islink(path):
-        # TODO If verbose
-        if (True):
+        # TODO Should syslink msgs be provided a different option?
+        if (opts.verbose):
             error_text = "Skipping symlink: '" + path + "'"
             print(error_text, file=sys.stderr)
         return True
@@ -173,8 +179,6 @@ def _check_opts(opts):
         sys.exit()
 
 def _insert_file(file_data, classifier, opts):
-    # FIXME if this fails due to computation of a hash, the hash might be of a
-    # file already added, not the one refering to fpath
     try:
         classifier.insert(file_data[0], file_data[1])
     except Exception as e:
@@ -190,8 +194,7 @@ def _safe_op(op, args, opts):
         return (False, 0)
 
 def _exception_msg(e, opts):
-    # TODO If verbose
-    if (True):
+    if (opts.verbose):
         err_msg = ' '.join(str(e).split(' ')[2:])
         print(err_msg, file=sys.stderr)
 
