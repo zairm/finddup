@@ -8,32 +8,36 @@ class Simple_Classifier(Classifier):
     def __init__(self):
         self._groups = []
 
-    def insert(self, fpath, size):
+    def insert(self, fpath, size, exc_handler=None):
+        """
+        Inserts file path refered to by 'fpath' (with size 'size') into the
+        classifier. Throws an exception if cannot read file at 'fpath' if a read
+        was required.
+
+        An exception might occour when reading a different file whose path has
+        already been added to the classifier. If this happens, the exception is
+        handled here and the path is removed from the classifier.
+        exc_handler(Exception) may be provided to perform an action on such an
+        exception.
+        """
         file_hash = ""
         cur_idx = 0
         while (cur_idx < len(self._groups)):
             group = self._groups[cur_idx]
             if (group.size == size):
                 if group.hash == "":
-                    # FIXME The try-except statements below surpress all exceptions
-                    # These should be viewable if verbose is enabled.
-                    # Shouldn't print errors in this file. (Pass in exception
-                    # handling fn?)
-
                     # (group.hash == "") implies len(group.get_entries()) == 1
                     # Hence we can del the group if try fails without checking
                     # for other entries.
                     try:
                         group.hash = get_hash(group.get_entries()[0])
-                    except Exception:
+                    except Exception as e:
                         del self._groups[cur_idx]
+                        if not (exc_handler == None):
+                            exc_handler(e)
                         continue
                 if file_hash == "":
-                    # We could just let this exception be raised
-                    try:
-                        file_hash = get_hash(fpath)
-                    except Exception:
-                        return
+                    file_hash = get_hash(fpath)
                 if group.hash == file_hash:
                     group.add_entry(fpath)
                     return

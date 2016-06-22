@@ -179,8 +179,10 @@ def _check_opts(opts):
         sys.exit()
 
 def _insert_file(file_data, classifier, opts):
+    def exc_handler(e):
+        _exception_msg(e, opts)
     try:
-        classifier.insert(file_data[0], file_data[1])
+        classifier.insert(file_data[0], file_data[1], exc_handler)
     except Exception as e:
         _exception_msg(e, opts)
 
