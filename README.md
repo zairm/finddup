@@ -10,11 +10,14 @@ Usage: cmd_handler.py [OPTION]... [FILE]...
 Finds duplicate files in FILEs and outputs them in groups
 Each FILE can a path to a directory or a file
 Given FILEs will not be filtered out given any OPTION
+Ignores all symlinks
 
 Options:
   -h, --help            show this help message and exit
   -r, --recurse         Recursively check files in subdirectories
   -a, --all             Include directories and files begining with .
+  -v, --verbose         Output all errors to stderr as they occour (disabled
+                        by default)
   -s SORT, --sort=SORT  Sort group by size: ASCE for ascending. DESC for
                         decending
   --lsize               List file size of a single file in each group along
