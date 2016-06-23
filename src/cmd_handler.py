@@ -10,7 +10,9 @@ def main():
         pass
     def verbose_callback(option, opt, value, parser):
         def verbose_msgr(e):
-            err_msg = ' '.join(str(e).split(' ')[2:])
+            if e.strerror == None or e.filename == None:
+                raise Exception("Unexcpected exception encountered")
+            err_msg = e.strerror + ": '" + e.filename + "'"
             print(err_msg, file=sys.stderr)
         parser.values.err_msgr = verbose_msgr
 
@@ -193,7 +195,7 @@ def _check_opts(opts):
 def _insert_file(file_data, classifier, opts):
     try:
         classifier.insert(file_data[0], file_data[1], opts.err_msgr)
-    except Exception as e:
+    except OSError as e:
         opts.err_msgr(e)
 
 if __name__ == "__main__":

@@ -51,17 +51,20 @@ class Simple_Classifier(Classifier):
     def get_groups(self):
         return self._groups
 
-# TODO Instead of throwing exception due to method calls inside, throw a new
-# more useful exception that informs of the path for which file access
-# resulted in an exception
 def get_hash(fpath):
-    read_size = 65536
-    fl = open(fpath,'rb')
-    md5 = hashlib.md5()
-    buff = fl.read(read_size)
-    while (len(buff) > 0):
-        md5.update(buff)
+    try:
+        read_size = 65536
+        fl = open(fpath,'rb')
+        md5 = hashlib.md5()
         buff = fl.read(read_size)
-    fl.close()
-    return md5.digest()
+        while (len(buff) > 0):
+            md5.update(buff)
+            buff = fl.read(read_size)
+        fl.close()
+        return md5.digest()
+    except OSError as e:
+        if (e.filename == None):
+            msg = "Hashing failure (" + e.strerror + ")"
+            raise OSError(None, msg, fpath)
+        raise e
 
