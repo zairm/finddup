@@ -1,10 +1,19 @@
 import optparse, os, sys
+import safefn
 from simple_classifier import Simple_Classifier
 
 # TODO Most (if not all) permission exceptions seem to occour in classifier's
 # insert. Check permissions before senselessly adding a file to claissifier
 
 def main():
+    def empty_fn(e):
+        pass
+    def verbose_callback(option, opt, value, parser):
+        def verbose_msgr(e):
+            err_msg = ' '.join(str(e).split(' ')[2:])
+            print(err_msg, file=sys.stderr)
+        parser.values.err_msgr = verbose_msgr
+
     usage = "Usage: %prog [OPTION]... [FILE]...\n" \
             + "Finds duplicate files in FILEs and outputs them in groups\n" \
             + "Each FILE can a path to a directory or a file\n" \
@@ -12,13 +21,13 @@ def main():
             + "Ignores all symlinks"
     parser = optparse.OptionParser(usage=usage)
     parser.set_defaults(recurse=False, hidden=False, sort="", list_size=False, \
-        size_format="", min_size=0, max_size=0, verbose=False)
+        size_format="", min_size=0, max_size=0, err_msgr=empty_fn)
 
     parser.add_option("-r", "--recurse", action="store_true", dest="recurse",
         help="Recursively check files in subdirectories")
     parser.add_option("-a", "--all", action="store_true", dest="hidden",
         help="Include directories and files begining with .")
-    parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
+    parser.add_option("-v", "--verbose", action="callback", callback=verbose_callback,
         help="Output all errors to stderr as they occour (disabled by default)")
     parser.add_option("-s", "--sort", action="store", type="string", dest="sort",
         help="Sort group by size: ASCE for ascending. DESC for decending")
@@ -57,19 +66,21 @@ def add_files(paths, classifier, opts):
         if _is_symlink(path, opts):
             continue
 
-        if os.path.isfile(path):
-            (succ, file_size) = _file_size(path, opts)
+        (succ, isfile) = safefn.isfile(path, opts.err_msgr)
+        if succ and isfile:
+            (succ, file_size) = safefn.getsize(path, opts.err_msgr)
             if (not succ):
                 continue
             _insert_file((path, file_size), classifier, opts)
 
-        if os.path.isdir(path):
+        (succ, isdir) = safefn.isdir(path, opts.err_msgr)
+        if succ and isdir:
             add_dir_files(path, classifier, opts)
 
 def add_dir_files(dr, classifier, opts):
     if not opts.recurse:
         entries = []
-        (succ, entries) = _safe_op(os.listdir, [dr], opts)
+        (succ, entries) = safefn.listdir(dr, opts.err_msgr)
         if (not succ):
             return
         
@@ -77,8 +88,8 @@ def add_dir_files(dr, classifier, opts):
             entry_path = os.path.join(dr, entry)
             if _is_symlink(entry_path, opts):
                 continue
-            if (_keep_entry(entry, opts) and os.path.isfile(entry_path)):
-                (succ, file_size) = _file_size(entry_path, opts)
+            if (_keep_entry(entry, opts) and safefn.isfile(entry_path, opts.err_msgr)):
+                (succ, file_size) = safefn.getsize(entry_path, opts.err_msgr)
                 if (not succ) or (not _is_right_size(file_size, opts)):
                     continue
                 _insert_file((entry_path, file_size), classifier, opts)
@@ -92,7 +103,7 @@ def add_dir_files(dr, classifier, opts):
                     continue
                 if _keep_entry(fl, opts):
                     fl_path = os.path.join(root, fl)
-                    (succ, file_size) = _file_size(fl_path, opts)
+                    (succ, file_size) = safefn.getsize(fl_path, opts.err_msgr)
                     if (not succ) or (not _is_right_size(file_size, opts)):
                         continue
                     _insert_file((fl_path, file_size), classifier, opts)
@@ -101,16 +112,15 @@ def add_dir_files(dr, classifier, opts):
                 if not _keep_entry(folder, opts):
                     dirs.remove(folder)
 
-def _file_size(fpath, opts):
-    return _safe_op(os.path.getsize, [fpath], opts)
-
-
+# FIXME Handle the case where islink throws an exception
+# (Safe wrapped version of islink defined in safefn)
+# + Get this to work with the new err_handler
 def _is_symlink(path, opts):
     if os.path.islink(path):
-        # TODO Should syslink msgs be provided a different option?
-        if (opts.verbose):
-            error_text = "Skipping symlink: '" + path + "'"
-            print(error_text, file=sys.stderr)
+        # TODO Should syslink msgs be provided a different OPTION?
+#        if (opts.verbose):
+#            error_text = "Skipping symlink: '" + path + "'"
+#            print(error_text, file=sys.stderr)
         return True
     return False
 
@@ -178,27 +188,13 @@ def _check_opts(opts):
         print(outstr, file=sys.stderr)
         sys.exit()
 
+# TODO Handle the exceptions in a more elegant way. Probably need to change
+# classifier.insert a bit
 def _insert_file(file_data, classifier, opts):
-    def exc_handler(e):
-        _exception_msg(e, opts)
     try:
-        classifier.insert(file_data[0], file_data[1], exc_handler)
+        classifier.insert(file_data[0], file_data[1], opts.err_msgr)
     except Exception as e:
-        _exception_msg(e, opts)
-
-# TODO Use _safe_op for os and os.path fns as a defense against exceptions
-# (make sure add returns, continue, or whatever as needed)
-def _safe_op(op, args, opts):
-    try:
-        return (True, op(*args))
-    except Exception as e:
-        _exception_msg(e, opts)
-        return (False, 0)
-
-def _exception_msg(e, opts):
-    if (opts.verbose):
-        err_msg = ' '.join(str(e).split(' ')[2:])
-        print(err_msg, file=sys.stderr)
+        opts.err_msgr(e)
 
 if __name__ == "__main__":
     main()

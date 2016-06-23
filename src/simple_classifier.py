@@ -1,5 +1,4 @@
-import hashlib, os.path, sys
-import os
+import hashlib
 from classifier import Classifier
 from simple_group import Simple_Group
 
@@ -52,6 +51,9 @@ class Simple_Classifier(Classifier):
     def get_groups(self):
         return self._groups
 
+# TODO Instead of throwing exception due to method calls inside, throw a new
+# more useful exception that informs of the path for which file access
+# resulted in an exception
 def get_hash(fpath):
     read_size = 65536
     fl = open(fpath,'rb')
