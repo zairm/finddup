@@ -1,6 +1,6 @@
 import optparse, os, sys
 import safefn
-from simple_classifier import Simple_Classifier
+import simple_classifier
 
 # TODO Most (if not all) permission exceptions seem to occour in classifier's
 # insert. Check permissions before senselessly adding a file to claissifier
@@ -24,7 +24,7 @@ def main():
             + "Ignores all symlinks"
     parser = optparse.OptionParser(usage=usage)
     parser.set_defaults(recurse=False, hidden=False, sort="", list_size=False, \
-        size_format="", min_size=0, max_size=0, err_msgr=empty_fn)
+        size_format="", min_size=0, max_size=0, err_msgr=empty_fn, hash_alg=None)
 
     parser.add_option("-r", "--recurse", action="store_true", dest="recurse",
         help="Recursively check files in subdirectories")
@@ -36,20 +36,24 @@ def main():
         help="Sort group by size: ASCE for ascending. DESC for decending")
     parser.add_option("--lsize", action="store_true", dest="list_size",
         help="List file size of a single file in each group along with the groups\n")
-    parser.add_option("--lsizef", action="store", type="string", dest="size_format", \
+    parser.add_option("--lsizef", action="store", type="string", dest="size_format",
         metavar="MODE", help="If --lsize if given; list file size in format " \
         + "MODE (defaults to bytes) as follows; k (kilobytes), m (megabytes)")
     parser.add_option("--minsize", action="store", type="int", dest="min_size",
         help="Only check files with byte size atleast MIN (MIN = 0 is ignored)")
     parser.add_option("--maxsize", action="store", type="int", dest="max_size",
         help="Only check files with byte size at most MAX (MAX = 0 is ignored)")
-
+    parser.add_option("--alg", action="store", type="choice", 
+        choices=simple_classifier.hash_algs, dest="hash_alg", metavar="ALG",
+        help="Use one of the following algorithms to establish file " \
+        + "equivalence (defaults to md5): " + " ".join(simple_classifier.hash_algs))
 
     (opts, paths) = parser.parse_args()
+    opts.hash_alg = simple_classifier.get_hash_generator(opts.hash_alg)
     _check_opts(opts)
     if (not paths):
         paths = [os.getcwd()]
-    classifier = Simple_Classifier()
+    classifier = simple_classifier.Simple_Classifier()
     add_files(paths, classifier, opts)
     print_result(classifier, opts)
 
@@ -89,7 +93,8 @@ def add_dir_files(dr, classifier, opts):
             entry_path = os.path.join(dr, entry)
             if _is_symlink(entry_path, opts):
                 continue
-            if (_keep_entry(entry, opts) and safefn.isfile(entry_path, opts.err_msgr)):
+            (succ, isfile) = safefn.isfile(entry_path, opts.err_msgr)
+            if (_keep_entry(entry, opts) and succ and isfile):
                 (succ, file_size) = safefn.getsize(entry_path, opts.err_msgr)
                 if (not succ) or (not _is_right_size(file_size, opts)):
                     continue
@@ -193,7 +198,7 @@ def _check_opts(opts):
 # classifier.insert a bit
 def _insert_file(file_data, classifier, opts):
     try:
-        classifier.insert(file_data[0], file_data[1], opts.err_msgr)
+        classifier.insert(file_data[0], file_data[1], opts.err_msgr, opts.hash_alg)
     except OSError as e:
         opts.err_msgr(e)
 

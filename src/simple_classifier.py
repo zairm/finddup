@@ -2,12 +2,14 @@ import hashlib
 from classifier import Classifier
 from simple_group import Simple_Group
 
+hash_algs = sorted(list(hashlib.algorithms_available))
+
 class Simple_Classifier(Classifier):
 
     def __init__(self):
         self._groups = []
 
-    def insert(self, fpath, size, exc_handler=None):
+    def insert(self, fpath, size, exc_handler=None, hash_gen=None):
         """
         Inserts file path refered to by 'fpath' (with size 'size') into the
         classifier. Throws an exception if cannot read file at 'fpath' if a read
@@ -19,24 +21,24 @@ class Simple_Classifier(Classifier):
         exc_handler(Exception) may be provided to perform an action on such an
         exception.
         """
-        file_hash = ""
+        file_hash = None
         cur_idx = 0
         while (cur_idx < len(self._groups)):
             group = self._groups[cur_idx]
             if (group.size == size):
-                if group.hash == "":
-                    # (group.hash == "") implies len(group.get_entries()) == 1
+                if group.hash == None:
+                    # (group.hash == None) implies len(group.get_entries()) == 1
                     # Hence we can del the group if try fails without checking
                     # for other entries.
                     try:
-                        group.hash = get_hash(group.get_entries()[0])
+                        group.hash = _get_hash(group.get_entries()[0], hash_gen)
                     except Exception as e:
                         del self._groups[cur_idx]
                         if not (exc_handler == None):
                             exc_handler(e)
                         continue
-                if file_hash == "":
-                    file_hash = get_hash(fpath)
+                if file_hash == None:
+                    file_hash = _get_hash(fpath, hash_gen)
                 if group.hash == file_hash:
                     group.add_entry(fpath)
                     return
@@ -51,20 +53,28 @@ class Simple_Classifier(Classifier):
     def get_groups(self):
         return self._groups
 
-def get_hash(fpath):
+def _get_hash(fpath, hash_gen=None):
     try:
+        if hash_gen == None: hash_gen = hashlib.md5
         read_size = 65536
         fl = open(fpath,'rb')
-        md5 = hashlib.md5()
+        hash_fn = hash_gen()
         buff = fl.read(read_size)
         while (len(buff) > 0):
-            md5.update(buff)
+            hash_fn.update(buff)
             buff = fl.read(read_size)
         fl.close()
-        return md5.digest()
+        return hash_fn.digest()
     except OSError as e:
         if (e.filename == None):
             msg = "Hashing failure (" + e.strerror + ")"
             raise OSError(None, msg, fpath)
         raise e
+
+def get_hash_generator(hash_alg):
+    def constructor():
+        return hashlib.new(hash_alg)
+    if hash_alg in hashlib.algorithms_guaranteed:
+        constructor = getattr(hashlib, hash_alg)
+    return constructor
 
