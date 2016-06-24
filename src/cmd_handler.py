@@ -49,11 +49,11 @@ def main():
         + "equivalence (defaults to md5): " + " ".join(simple_classifier.hash_algs))
 
     (opts, paths) = parser.parse_args()
-    opts.hash_alg = simple_classifier.get_hash_generator(opts.hash_alg)
     _check_opts(opts)
     if (not paths):
         paths = [os.getcwd()]
-    classifier = simple_classifier.Simple_Classifier()
+    hash_gen = simple_classifier.get_hash_generator(opts.hash_alg)
+    classifier = simple_classifier.Simple_Classifier(hash_gen)
     add_files(paths, classifier, opts)
     print_result(classifier, opts)
 
@@ -147,12 +147,11 @@ def print_result(classifier, opts):
     (outstr, groupstr) = ("", "")
     groups = classifier.get_groups()
     if (opts.sort == "ASCE"):
-        groups.sort(key= lambda group: group.size)
+        groups.sort(key= lambda group: group.file_size)
     if (opts.sort == "DESC"):
-        groups.sort(key= lambda group: (-1)*group.size)
+        groups.sort(key= lambda group: (-1)*group.file_size)
 
     for group in groups:
-        # TODO make number of entries (len(group.get_entries()) a property
         if len(group.get_entries()) < 2:
             continue
         groupstr = _group_header(cur_group, group, opts)
@@ -167,7 +166,7 @@ def print_result(classifier, opts):
 def _group_header(g_num, group, opts):
     header = "Group " + str(g_num)
     if (opts.list_size):
-        header += " " + _format_filesize(group.size, opts)
+        header += " " + _format_filesize(group.file_size, opts)
     header += ":\n----\n"
     return header
 
@@ -198,7 +197,7 @@ def _check_opts(opts):
 # classifier.insert a bit
 def _insert_file(file_data, classifier, opts):
     try:
-        classifier.insert(file_data[0], file_data[1], opts.err_msgr, opts.hash_alg)
+        classifier.insert(file_data[0], file_data[1], opts.err_msgr)
     except OSError as e:
         opts.err_msgr(e)
 

@@ -4,12 +4,13 @@ from simple_group import Simple_Group
 
 hash_algs = sorted(list(hashlib.algorithms_available))
 
-class Simple_Classifier(Classifier):
+class Simple_Classifier:
 
-    def __init__(self):
+    def __init__(self, hash_gen):
         self._groups = []
+        self._hash_gen = hash_gen
 
-    def insert(self, fpath, size, exc_handler=None, hash_gen=None):
+    def insert(self, fpath, size, exc_handler=None):
         """
         Inserts file path refered to by 'fpath' (with size 'size') into the
         classifier. Throws an exception if cannot read file at 'fpath' if a read
@@ -25,20 +26,20 @@ class Simple_Classifier(Classifier):
         cur_idx = 0
         while (cur_idx < len(self._groups)):
             group = self._groups[cur_idx]
-            if (group.size == size):
+            if (group.file_size == size):
                 if group.hash == None:
                     # (group.hash == None) implies len(group.get_entries()) == 1
                     # Hence we can del the group if try fails without checking
                     # for other entries.
                     try:
-                        group.hash = _get_hash(group.get_entries()[0], hash_gen)
+                        group.hash = _get_hash(group.get_entries()[0], self._hash_gen)
                     except Exception as e:
                         del self._groups[cur_idx]
                         if not (exc_handler == None):
                             exc_handler(e)
                         continue
                 if file_hash == None:
-                    file_hash = _get_hash(fpath, hash_gen)
+                    file_hash = _get_hash(fpath, self._hash_gen)
                 if group.hash == file_hash:
                     group.add_entry(fpath)
                     return
@@ -46,7 +47,7 @@ class Simple_Classifier(Classifier):
 
         new_group = Simple_Group()
         new_group.add_entry(fpath)
-        new_group.size = size
+        new_group.file_size = size
         new_group.hash = file_hash
         self._groups.append(new_group)
 

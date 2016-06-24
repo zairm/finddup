@@ -4,16 +4,16 @@ class Simple_Group(Group):
     
     def __init__(self):
         Group.__init__(self)
-        self._size = None
+        self._file_size = None
         self._hash = None
    
     @property
-    def size(self):
-        return self._size
+    def file_size(self):
+        return self._file_size
 
-    @size.setter
-    def size(self, size):
-        self._size = size
+    @file_size.setter
+    def file_size(self, file_size):
+        self._file_size = file_size
 
     @property
     def hash(self):
