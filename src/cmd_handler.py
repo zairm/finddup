@@ -19,6 +19,7 @@ def main():
     usage = "Usage: %prog [OPTION]... [FILE]...\n" \
             + "Finds duplicate files in FILEs and outputs them in groups\n" \
             + "Each FILE can a path to a directory or a file\n" \
+            + "If no FILE is provided current working directory is used\n" \
             + "Given FILEs will not be filtered out given any OPTION\n" \
             + "Ignores all symlinks"
     parser = optparse.OptionParser(usage=usage)
@@ -47,9 +48,7 @@ def main():
     (opts, paths) = parser.parse_args()
     _check_opts(opts)
     if (not paths):
-        # TODO Replace this with a more helpful error message
-        parser.print_help()
-        return
+        paths = [os.getcwd()]
     classifier = Simple_Classifier()
     add_files(paths, classifier, opts)
     print_result(classifier, opts)
