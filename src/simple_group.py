@@ -4,8 +4,8 @@ class Simple_Group(Group):
     
     def __init__(self):
         Group.__init__(self)
-        self._size = 0
-        self._hash = ""
+        self._size = None
+        self._hash = None
    
     @property
     def size(self):
