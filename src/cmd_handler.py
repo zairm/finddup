@@ -70,8 +70,8 @@ def add_files(paths, classifier, opts):
             error_text = "Skipping invalid path: " + path
             print(error_text, file=sys.stderr)
             continue
-
-        if _is_symlink(path, opts):
+        (succ, islink) = _is_symlink(path, opts)
+        if (not succ) or islink:
             continue
 
         (succ, isfile) = safefn.isfile(path, opts.err_msgr)
@@ -94,7 +94,8 @@ def add_dir_files(dr, classifier, opts):
         
         for entry in entries:
             entry_path = os.path.join(dr, entry)
-            if _is_symlink(entry_path, opts):
+            (succ, islink) = _is_symlink(entry_path, opts)
+            if (not succ) or islink:
                 continue
             (succ, isfile) = safefn.isfile(entry_path, opts.err_msgr)
             if (_keep_entry(entry, opts) and succ and isfile):
@@ -108,10 +109,11 @@ def add_dir_files(dr, classifier, opts):
             all_dirs = [dr for dr in dirs]
 
             for fl in files:
-                if _is_symlink(os.path.join(root, fl), opts):
+                fl_path = os.path.join(root, fl)
+                (succ, islink) = _is_symlink(fl_path, opts)
+                if (not succ) or islink:
                     continue
                 if _keep_entry(fl, opts):
-                    fl_path = os.path.join(root, fl)
                     (succ, file_size) = safefn.getsize(fl_path, opts.err_msgr)
                     if (not succ) or (not _is_right_size(file_size, opts)):
                         continue
@@ -121,17 +123,14 @@ def add_dir_files(dr, classifier, opts):
                 if not _keep_entry(folder, opts):
                     dirs.remove(folder)
 
-# FIXME Handle the case where islink throws an exception
-# (Safe wrapped version of islink defined in safefn)
-# + Get this to work with the new err_handler
 def _is_symlink(path, opts):
-    if os.path.islink(path):
-        # TODO Should syslink msgs be provided a different OPTION?
-#        if (opts.verbose):
-#            error_text = "Skipping symlink: '" + path + "'"
-#            print(error_text, file=sys.stderr)
-        return True
-    return False
+    (succ, res) = safefn.islink(path, opts.err_msgr)
+    if succ and res:
+        e = Exception()
+        e.strerror = "Skipping symlink"
+        e.filename = path
+        opts.err_msgr(e)
+    return (succ, res)
 
 def _is_right_size(size, opts):
     if (opts.min_size > 0 and size < opts.min_size):
