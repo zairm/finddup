@@ -23,8 +23,8 @@ def main():
             + "Given FILEs will not be filtered out given any OPTION\n" \
             + "Ignores all symlinks"
     parser = optparse.OptionParser(usage=usage)
-    parser.set_defaults(recurse=False, hidden=False, sort="", list_size=False, \
-        size_format="", min_size=0, max_size=0, err_msgr=empty_fn, hash_alg=None)
+    parser.set_defaults(recurse=False, hidden=False, sort=None, list_size=False, \
+        size_format="b", min_size=0, max_size=0, err_msgr=empty_fn, hash_alg="md5")
 
     parser.add_option("-r", "--recurse", action="store_true", dest="recurse",
         help="Recursively check files in subdirectories")
@@ -32,13 +32,16 @@ def main():
         help="Include directories and files begining with .")
     parser.add_option("-v", "--verbose", action="callback", callback=verbose_callback,
         help="Output all errors to stderr as they occour (disabled by default)")
-    parser.add_option("-s", "--sort", action="store", type="string", dest="sort",
-        help="Sort group by size: ASCE for ascending. DESC for decending")
+    sort_opts = ["ASCE", "DESC"]
+    parser.add_option("-s", "--sort", action="store", type="choice", choices=sort_opts,
+        dest="sort", help="Sort group by size: ASCE for ascending. DESC for decending")
     parser.add_option("--lsize", action="store_true", dest="list_size",
         help="List file size of a single file in each group along with the groups\n")
-    parser.add_option("--lsizef", action="store", type="string", dest="size_format",
-        metavar="MODE", help="If --lsize if given; list file size in format " \
-        + "MODE (defaults to bytes) as follows; k (kilobytes), m (megabytes)")
+    sizef_opts = ["b", "k", "m"]
+    parser.add_option("--lsizef", action="store", type="choice", choices=sizef_opts,
+        dest="size_format", metavar="MODE", 
+        help="If --lsize if given; list file size in format " \
+        + "MODE as follows; b (bytes - default), k (kilobytes), m (megabytes)")
     parser.add_option("--minsize", action="store", type="int", dest="min_size",
         help="Only check files with byte size atleast MIN (MIN = 0 is ignored)")
     parser.add_option("--maxsize", action="store", type="int", dest="max_size",
@@ -176,12 +179,14 @@ def _group_file_paths(group, opts):
         paths_str += fpath + "\n"
     return paths_str
 
+# TODO Make format precision an option?
 def _format_filesize(size, opts):
-    if (opts.size_format == "k"):
-        return "{0:.2f}".format(size / 1024.0)
-    if (opts.size_format == "m"):
-        return "{0:.2f}".format(size / 1048576.0)
-    return str(size)
+    prec = str(0)
+    formatter = "{0:." + prec + "f}"
+    divs = {"b" : 1.0,
+            "k"  : 1024.0,
+            "m"  : 1048576.0}
+    return formatter.format(size/divs[opts.size_format]) 
 
 def _check_opts(opts):
     outstr = ""

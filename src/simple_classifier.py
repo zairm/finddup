@@ -1,5 +1,4 @@
 import hashlib
-from classifier import Classifier
 from simple_group import Simple_Group
 
 hash_algs = sorted(list(hashlib.algorithms_available))
