@@ -6,9 +6,8 @@ hash_algs = sorted(list(hashlib.algorithms_available))
 class Simple_Classifier:
 
     def __init__(self, hash_gen):
-        self._groups = []
+        self._groups = {}
         self._hash_gen = hash_gen
-        self._group_keys = []
 
     #***************#
     # insert method #
@@ -33,6 +32,14 @@ class Simple_Classifier:
         groups = self._groups
         hash_gen = self._hash_gen
 
+        try:
+            groups = groups[size]
+        except KeyError:
+            group = _Group(fl_data)
+            group.add_entry(fpath)
+            groups[size] = [group]
+            return
+
         while (cur_idx < len(groups)):
             try:
                 group = groups[cur_idx]
@@ -46,14 +53,21 @@ class Simple_Classifier:
                 del groups[cur_idx]
                 cur_idx -= 1
             cur_idx += 1
-
-        groups.append(_Group(fl_data))
+        
+        group = _Group(fl_data)
+        group.add_entry(fpath)
+        groups.append(group)
 
     #***************#
     # Other methods #
     #***************#
     def get_groups(self):
-        return self._groups
+        res = []
+        groups = list(self._groups.values())
+        for sub_groups in groups:
+            for group in sub_groups:
+                res.append(group)
+        return res
 
 class _Group:
     def __init__(self, data):
