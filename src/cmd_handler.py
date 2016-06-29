@@ -1,6 +1,8 @@
 import optparse, os, sys
 import safefn
 import simple_classifier
+import time
+# import file_data
 
 # TODO Most (if not all) permission exceptions seem to occour in classifier's
 # insert. Check permissions before senselessly adding a file to claissifier
@@ -24,7 +26,7 @@ def main():
             + "Ignores all symlinks"
     parser = optparse.OptionParser(usage=usage)
     parser.set_defaults(recurse=False, hidden=False, sort=None, list_size=False, \
-        size_format="b", min_size=0, max_size=0, err_msgr=empty_fn, hash_alg="md5")
+        size_format="b", min_size=0, max_size=0, err_msgr=None, hash_alg="md5")
 
     parser.add_option("-r", "--recurse", action="store_true", dest="recurse",
         help="Recursively check files in subdirectories")
@@ -86,6 +88,11 @@ def add_files(paths, classifier, opts):
             add_dir_files(path, classifier, opts)
 
 def add_dir_files(dr, classifier, opts):
+    # "Pointers" for speed
+    os_path_join = os.path.join
+    safefn_getsize = safefn.getsize
+
+
     if not opts.recurse:
         entries = []
         (succ, entries) = safefn.listdir(dr, opts.err_msgr)
@@ -93,13 +100,13 @@ def add_dir_files(dr, classifier, opts):
             return
         
         for entry in entries:
-            entry_path = os.path.join(dr, entry)
+            entry_path = os_path_join(dr, entry)
             (succ, islink) = _is_symlink(entry_path, opts)
             if (not succ) or islink:
                 continue
             (succ, isfile) = safefn.isfile(entry_path, opts.err_msgr)
             if (_keep_entry(entry, opts) and succ and isfile):
-                (succ, file_size) = safefn.getsize(entry_path, opts.err_msgr)
+                (succ, file_size) = safefn_getsize(entry_path, opts.err_msgr)
                 if (not succ) or (not _is_right_size(file_size, opts)):
                     continue
                 _insert_file((entry_path, file_size), classifier, opts)
@@ -109,12 +116,12 @@ def add_dir_files(dr, classifier, opts):
             all_dirs = [dr for dr in dirs]
 
             for fl in files:
-                fl_path = os.path.join(root, fl)
+                fl_path = os_path_join(root, fl)
                 (succ, islink) = _is_symlink(fl_path, opts)
                 if (not succ) or islink:
                     continue
                 if _keep_entry(fl, opts):
-                    (succ, file_size) = safefn.getsize(fl_path, opts.err_msgr)
+                    (succ, file_size) = safefn_getsize(fl_path, opts.err_msgr)
                     if (not succ) or (not _is_right_size(file_size, opts)):
                         continue
                     _insert_file((fl_path, file_size), classifier, opts)
@@ -129,7 +136,7 @@ def _is_symlink(path, opts):
         e = Exception()
         e.strerror = "Skipping symlink"
         e.filename = path
-        opts.err_msgr(e)
+        if opts.err_msgr != None: opts.err_msgr(e)
     return (succ, res)
 
 def _is_right_size(size, opts):
@@ -149,9 +156,9 @@ def print_result(classifier, opts):
     (outstr, groupstr) = ("", "")
     groups = classifier.get_groups()
     if (opts.sort == "ASCE"):
-        groups.sort(key= lambda group: group.file_size)
+        groups.sort(key= lambda group: group.data.size)
     if (opts.sort == "DESC"):
-        groups.sort(key= lambda group: (-1)*group.file_size)
+        groups.sort(key= lambda group: (-1)*group.data.size)
 
     for group in groups:
         if len(group.get_entries()) < 2:
@@ -168,7 +175,7 @@ def print_result(classifier, opts):
 def _group_header(g_num, group, opts):
     header = "Group " + str(g_num)
     if (opts.list_size):
-        header += " " + _format_filesize(group.file_size, opts)
+        header += " " + _format_filesize(group.data.size, opts)
     header += ":\n----\n"
     return header
 
@@ -200,11 +207,11 @@ def _check_opts(opts):
 # TODO Handle the exceptions in a more elegant way. Probably need to change
 # classifier.insert a bit
 def _insert_file(file_data, classifier, opts):
-    try:
-        classifier.insert(file_data[0], file_data[1], opts.err_msgr)
-    except OSError as e:
-        opts.err_msgr(e)
+    classifier.insert(file_data[0], file_data[1], opts.err_msgr)
 
 if __name__ == "__main__":
+    t0 = time.time()
     main()
+    t1 = time.time()
+    print("\n" + str(t1-t0) + "\n")
 
