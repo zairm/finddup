@@ -1,8 +1,7 @@
 import optparse, os, sys
 import safefn
-import simple_classifier
+from file_classifier import File_Classifier, hash_algs as fc_hash_algs
 import time
-# import file_data
 
 # TODO Most (if not all) permission exceptions seem to occour in classifier's
 # insert. Check permissions before senselessly adding a file to claissifier
@@ -49,16 +48,16 @@ def main():
     parser.add_option("--maxsize", action="store", type="int", dest="max_size",
         help="Only check files with byte size at most MAX (MAX = 0 is ignored)")
     parser.add_option("--alg", action="store", type="choice", 
-        choices=simple_classifier.hash_algs, dest="hash_alg", metavar="ALG",
+        choices=fc_hash_algs, dest="hash_alg", metavar="ALG",
         help="Use one of the following algorithms to establish file " \
-        + "equivalence (defaults to md5): " + " ".join(simple_classifier.hash_algs))
+        + "equivalence (defaults to md5): " + " ".join(fc_hash_algs))
 
     (opts, paths) = parser.parse_args()
     _check_opts(opts)
     if (not paths):
         paths = [os.getcwd()]
-    hash_gen = simple_classifier.get_hash_generator(opts.hash_alg)
-    classifier = simple_classifier.Simple_Classifier(hash_gen)
+#    hash_gen = simple_classifier.get_hash_generator(opts.hash_alg)
+    classifier = File_Classifier(opts.hash_alg)
     add_files(paths, classifier, opts)
     print_result(classifier, opts)
 
@@ -155,16 +154,17 @@ def print_result(classifier, opts):
     cur_group = 1
     (outstr, groupstr) = ("", "")
     groups = classifier.get_groups()
-    if (opts.sort == "ASCE"):
-        groups.sort(key= lambda group: group.data.size)
-    if (opts.sort == "DESC"):
-        groups.sort(key= lambda group: (-1)*group.data.size)
+    reverse = False
+    if (opts.sort in ["DESC", "ASCE"]):
+        rev = opts.sort == "DESC"
+        key = lambda group: group.data.size
+        groups.sort(key=key, reverse=rev)
 
     for group in groups:
-        if len(group.get_entries()) < 2:
+        if len(group) < 2:
             continue
         groupstr = _group_header(cur_group, group, opts)
-        groupstr += _group_file_paths(group, opts) + "\n"
+        groupstr += str(group) + "\n\n"
         outstr += groupstr
         cur_group += 1
 
@@ -173,10 +173,10 @@ def print_result(classifier, opts):
     print(outstr, end="")
 
 def _group_header(g_num, group, opts):
-    header = "Group " + str(g_num)
+    header = "G " + str(g_num)
     if (opts.list_size):
-        header += " " + _format_filesize(group.data.size, opts)
-    header += ":\n----\n"
+        header += " - " + _format_filesize(group.data.size, opts)
+    header += "\n"
     return header
 
 def _group_file_paths(group, opts):

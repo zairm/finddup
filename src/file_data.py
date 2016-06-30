@@ -1,59 +1,50 @@
 import hashlib
 
-
-hash_algs = sorted(list(hashlib.algorithms_available))
+hash_algs = sorted(hashlib.algorithms_available)
 
 class File_Data:
-    
-    def __init__(self, path, hasher, size=None, hash=None):
-        self._path = path
-        self._size = size
-        self._hash = hash
+    def __init__(self, path, size):
+        self.path = path
+        self.size = size
+        self.hash = None
 
-    def reset_hasher(self, hasher):
-        self._hasher = hasher
-        self._hash = None
+    @staticmethod
+    def is_equal(self, other, hash_gen):
+        # Because we use a dict for size in the classifier, this comparison is 
+        # unnecessary. So we just take a small performance boost
+        #if self.size != other.size:
+        #    return False
 
-    def __eq__(self, other):
-        if self.size != other.size:
-            return False
-        if self.hash != other.hash:
-            return False
-        return True
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    @property
-    def size(self):
-        if (self._size == None):
-            self._size = os.path.getsize(self.path)
-        return self._size
-
-    @property
-    def hash(self):
-        if (self._hash == None):
-            self._hash = self._hasher(self.path)
-            # del self._hasher
-        return self._hash
-
-    @property
-    def path(self):
-        return self._path
+        if other.hash == None:
+            other.hash = _get_hash(other.path, hash_gen)
+            del other.path
+        if self.hash == None:
+            self.hash = _get_hash(self.path, hash_gen)
+            del self.path
+        return self.hash == other.hash
 
 
 def _get_hash(fpath, hash_gen=None):
+    # Help credit: http://stackoverflow.com/a/3431835
+    
+    # We could place the try in a helper but why have such a simple call
+    # negatively touching performance?
     try:
         if hash_gen == None: hash_gen = hashlib.md5
-        read_size = 65536
+        read_size = 65536 
         fl = open(fpath,'rb')
-        hash_fn = hash_gen()
-        buff = fl.read(read_size)
+        hash_fn = hash_gen()    
+        # "Pointers" for speed
+        fl_read = fl.read
+        hash_update = hash_fn.update
+
+        buff = fl_read(read_size)
         while (len(buff) > 0):
-            hash_fn.update(buff)
-            buff = fl.read(read_size)
+            hash_update(buff)
+            buff = fl_read(read_size)
         fl.close()
         return hash_fn.digest()
+        
     except OSError as e:
         if (e.filename == None):
             msg = "Hashing failure (" + e.strerror + ")"
@@ -61,8 +52,11 @@ def _get_hash(fpath, hash_gen=None):
         raise e
 
 def get_hash_generator(hash_alg):
+    # "Pointers" for speed
+    hashlib_new = hashlib.new
+
     def constructor():
-        return hashlib.new(hash_alg)
+        return hashlib_new(hash_alg)
     if hash_alg in hashlib.algorithms_guaranteed:
         constructor = getattr(hashlib, hash_alg)
     return constructor
