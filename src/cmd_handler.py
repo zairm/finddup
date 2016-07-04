@@ -144,7 +144,7 @@ def print_result(classifier, opts):
     (outstr, groupstr) = ("", "")
     
     nontrival_group = lambda group: len(group) > 1
-    groups = filter(nontrival_group,  classifier.get_groups())
+    groups = list(filter(nontrival_group,  classifier.get_groups()))
     
     if (opts.sort in ["DESC", "ASCE"]):
         rev = opts.sort == "DESC"
@@ -157,7 +157,7 @@ def print_result(classifier, opts):
     outstr = "\n\n".join(groups)
     
     if outstr == "": outstr = "No Matches found"
-    print(outstr, end="")
+    print(outstr)
 
 def _group_header(g_num, group, opts):
     header = "G " + str(g_num)
