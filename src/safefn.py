@@ -25,7 +25,7 @@ def _safe_op(op, args, exc_handler=None):
     try:
         return (True, op(*args))
     except IOError as e:
-        if exc_handler != None:
-            exc_handler(e)
+        try: exc_handler(e)
+        except Exception: pass
         return (False, 0)
 

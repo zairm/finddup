@@ -45,7 +45,8 @@ class File_Classifier:
                     group.append(fpath)
                     return
             except OSError as e:
-                if exc_handler != None: exc_handler(e)
+                try: exc_handler(e)
+                except Exception: pass
                 if e.filename == fpath:
                     return
                 del groups[cur_idx]
@@ -60,8 +61,7 @@ class File_Classifier:
     # Other methods #
     #***************#
     def get_groups(self):
-        res = []
-        for sub_groups in iter(self._groups.values()):
-            res.extend(sub_groups)
-        return res
+        for sub_groups in self._groups.values():
+            for group in sub_groups:
+                yield group
 

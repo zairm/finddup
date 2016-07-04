@@ -39,7 +39,7 @@ def _get_hash(fpath, hash_gen=None):
         hash_update = hash_fn.update
 
         buff = fl_read(read_size)
-        while (len(buff) > 0):
+        while (buff):
             hash_update(buff)
             buff = fl_read(read_size)
         fl.close()
