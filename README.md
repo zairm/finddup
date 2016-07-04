@@ -1,5 +1,5 @@
 # finddup
-Python utility to find duplicate files
+Python utility to find duplicate regular files
 
 Written for python3
 
@@ -7,7 +7,7 @@ Written for python3
 ## Usage
 ~~~~
 Usage: cmd_handler.py [OPTION]... [FILE]...
-Finds duplicate files in FILEs and outputs them in groups
+Finds duplicate regular files in FILEs and outputs them in groups
 Each FILE can a path to a directory or a file
 If no FILE is provided current working directory is used
 Given FILEs will not be filtered out given any OPTION
