@@ -1,5 +1,4 @@
 import optparse, os, sys
-import safefn
 from file_classifier import File_Classifier, hash_algs as fc_hash_algs
 import stat
 
@@ -17,7 +16,7 @@ def main():
         parser.values.err_msgr = verbose_msgr
 
     usage = "Usage: %prog [OPTION]... [FILE]...\n" \
-            + "Finds duplicate files in FILEs and outputs them in groups\n" \
+            + "Finds duplicate regular files in FILEs and outputs them in groups\n" \
             + "Each FILE can a path to a directory or a file\n" \
             + "If no FILE is provided current working directory is used\n" \
             + "Given FILEs will not be filtered out given any OPTION\n" \
@@ -52,18 +51,17 @@ def main():
         + "equivalence (defaults to md5): " + " ".join(fc_hash_algs))
 
     (opts, paths) = parser.parse_args()
-    _check_opts(opts)
+    _check_size(opts)
     if (not paths):
         paths = [os.getcwd()]
     classifier = File_Classifier(opts.hash_alg)
-    import time
-    t0 = time.time()
     add_files(paths, classifier, opts)
-    t1 = time.time()
-    print(str(t1-t0))
     print_result(classifier, opts)
 
 
+############################
+# Duplicate file detection #
+############################
 
 def add_files(paths, classifier, opts):
     for path in paths:
@@ -80,8 +78,7 @@ def add_files(paths, classifier, opts):
         if stat.S_ISREG(p_stat.st_mode):
             classifier.insert(path, p_stat.st_size)
 
-def add_dir_files(dr, classifier, opts):
-    
+def add_dir_files(dr, classifier, opts): 
     if opts.recurse:
         for root,dirs,files in os.walk(dr):
             # os.walk avoids symlinks
@@ -91,15 +88,35 @@ def add_dir_files(dr, classifier, opts):
             for fl in files:
                 fl_path = os.path.join(root, fl)
                 _add_file(fl_path, classifier, opts)
-    
     else:
-        (succ, entries) = safefn.listdir(dr, opts.err_msgr)
-        if (not succ): return
+        try:
+            entries = os.listdir(dr)
+        except OSError as e:
+            try: opts.err_msgr(e)
+            except Exception: pass
+            return
         
         _hidden_entryname_filter(opts, entries)
         for entry in entries:
             entry_path = os.path.join(dr, entry)
             _add_file(entry_path, classifier, opts)
+
+def _add_file(fl_path, classifier, opts):
+    try:
+        fl_stat = os.lstat(fl_path)
+    except OSError as e:
+        try: opts.err_msgr(e)
+        except Exception: pass
+        return
+    fl_size = fl_stat.st_size
+    # Must be a regular, non-symlink file with appropriate size
+    if (stat.S_ISREG(fl_stat.st_mode) and (not stat.S_ISLNK(fl_stat.st_mode)) \
+        and _filesize_filter(fl_size, opts)):
+            classifier.insert(fl_path, fl_size, opts.err_msgr)
+
+# -------------------------------
+# "Filter" helpers for the above
+#--------------------------------
 
 def _hidden_entryname_filter(opts, *entryname_arrays):
     if opts.hidden:
@@ -110,35 +127,17 @@ def _hidden_entryname_filter(opts, *entryname_arrays):
             if entry[0] == '.':
                 entries.remove(entry)
 
-def _add_file(fl_path, classifier, opts):
-    try:
-        fl_stat = os.lstat(fl_path)
-    except OSError as e:
-        try: opts.err_msgr(e)
-        except Exception: pass
-        return
-    fl_size = fl_stat.st_size
-    if (stat.S_ISREG(fl_stat.st_mode) and (not stat.S_ISLNK(fl_stat.st_mode)) \
-        and _filesize_filter(fl_size, opts)):
-            classifier.insert(fl_path, fl_size, opts.err_msgr)
-
-def _is_symlink(path, opts):
-    (succ, res) = safefn.islink(path, opts.err_msgr)
-    if succ and res:
-        e = Exception()
-        e.strerror = "Skipping symlink"
-        e.filename = path
-        try: opts.err_msgr(e)
-        except Exception: pass
-        if opts.err_msgr != None: opts.err_msgr(e)
-    return (succ, res)
-
 def _filesize_filter(size, opts):
     if (opts.min_size > 0 and size < opts.min_size):
         return False
     if (opts.max_size > 0 and size > opts.max_size):
         return False
     return True
+
+
+#########################
+# Result printing logic #
+#########################
 
 def print_result(classifier, opts):
     cur_group = 1
@@ -174,15 +173,15 @@ def _group_file_paths(group, opts):
     return paths_str
 
 # TODO Make format precision an option?
+divs = {"b" : 1.0,
+        "k"  : 1024.0,
+        "m"  : 1048576.0}
 def _format_filesize(size, opts):
     prec = str(0)
     formatter = "{0:." + prec + "f}"
-    divs = {"b" : 1.0,
-            "k"  : 1024.0,
-            "m"  : 1048576.0}
     return formatter.format(size/divs[opts.size_format]) 
 
-def _check_opts(opts):
+def _check_size(opts):
     outstr = ""
     if (opts.max_size < 0):
         outstr += "ERROR: --maxsize cannot be set to a negative number\n"
@@ -191,9 +190,6 @@ def _check_opts(opts):
     if (outstr != ""):
         print(outstr, file=sys.stderr)
         sys.exit()
-
-#def _insert_file(file_data, classifier, opts):
-#    classifier.insert(file_data[0], file_data[1], opts.err_msgr)
 
 if __name__ == "__main__":
     main()
