@@ -26,7 +26,7 @@ class File_Classifier:
         cur_idx = 0
         
         # "Pointers" for speed
-        iseq = File_Data.is_equal
+        iseq = File_Data.is_equal_hash
         groups = self._groups
         hash_gen = self._hash_gen
 

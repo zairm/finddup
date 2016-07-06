@@ -1,47 +1,56 @@
 import hashlib
 
 hash_algs = sorted(hashlib.algorithms_available)
+_HASH_READ_SIZE = 65536
 
 class File_Data:
     def __init__(self, path, size):
         self.path = path
         self.size = size
-        self.hash = None
+        self._hash = None
+        self._partial = None
 
     @staticmethod
-    def is_equal(self, other, hash_gen):
-        # Because we use a dict for size in the classifier, this comparison is 
-        # unnecessary. So we just take a small performance boost
-        #if self.size != other.size:
-        #    return False
-
-        if other.hash == None:
-            other.hash = _get_hash(other.path, hash_gen)
+    def is_equal_hash(self, other, hash_gen):
+        if other._partial == None:
+            other._partial = _get_hash(other.path, hash_gen, _HASH_READ_SIZE, True)
+            if other.size <= _HASH_READ_SIZE:
+                other._hash = other._partial
+                del other.path
+        if self._partial == None:
+            self._partial = _get_hash(self.path, hash_gen, _HASH_READ_SIZE, True)
+            if self.size <= _HASH_READ_SIZE:
+                self._hash = self._partial
+                del self.path
+        if self._partial != other._partial: return False
+        if other._hash == None:
+            other._hash = _get_hash(other.path, hash_gen)
             del other.path
-        if self.hash == None:
-            self.hash = _get_hash(self.path, hash_gen)
+        if self._hash == None:
+            self._hash = _get_hash(self.path, hash_gen)
             del self.path
-        return self.hash == other.hash
+        return self._hash == other._hash
 
-
-def _get_hash(fpath, hash_gen=None):
+def _get_hash(fpath, hash_gen=None, read_size=65536, partial=False):
     # Help credit: http://stackoverflow.com/a/3431835
     
     # We could place the try in a helper but why have such a simple call
     # negatively touching performance?
     try:
         if hash_gen == None: hash_gen = hashlib.md5
-        read_size = 65536 
         fl = open(fpath,'rb')
-        hash_fn = hash_gen()    
-        # "Pointers" for speed
-        fl_read = fl.read
-        hash_update = hash_fn.update
-
-        buff = fl_read(read_size)
-        while (buff):
-            hash_update(buff)
+        hash_fn = hash_gen()
+        
+        if partial:
+            hash_fn.update(fl.read(read_size))
+        else:
+            # "Pointers" for speed
+            fl_read, hash_update = fl.read, hash_fn.update
+    
             buff = fl_read(read_size)
+            while (buff):
+                hash_update(buff)
+                buff = fl_read(read_size)
         fl.close()
         return hash_fn.digest()
         
