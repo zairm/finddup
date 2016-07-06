@@ -1,5 +1,6 @@
 import optparse, os, sys
 from file_classifier import File_Classifier, hash_algs as fc_hash_algs
+from new_walk import new_walk
 import stat
 
 # TODO Most (if not all) permission exceptions seem to occour in classifier's
@@ -84,23 +85,30 @@ def add_files(paths, classifier, opts):
 
 def add_dir_files(dr, classifier, opts): 
     if opts.recurse:
-        for root,dirs,files in os.walk(dr):
+        for root,dirs,files in new_walk(dr):
+#        for root,dirs,files in os.walk(dr):
             # os.walk avoids symlinks
-            _hidden_entryname_filter(opts, files, dirs)
-            
+#            _hidden_entryname_filter(opts, files, dirs)
+            _hidden_entryname_filter(opts, files)
+            _hidden_entryname_filter_mod(opts, dirs) 
+
             all_dirs = [dr for dr in dirs]
             for dr in all_dirs:
-                try:
-                    d_stat = os.lstat(os.path.join(root, dr))
-                except OSError as e:
-                    try: opts.err_msgr(e)
-                    except Exception: pass
-                    dirs.remove(dr)
-                    continue
-                if d_stat.st_ino in opts.visited:
+                if dr[1] in opts.visited:
                     dirs.remove(dr)
                 else:
-                    opts.visited.add(d_stat.st_ino)
+                    opts.visited.add(dr[1])
+#                try:
+#                    d_stat = os.lstat(os.path.join(root, dr))
+#                except OSError as e:
+#                    try: opts.err_msgr(e)
+#                    except Exception: pass
+#                    dirs.remove(dr)
+#                    continue
+#                if d_stat.st_ino in opts.visited:
+#                    dirs.remove(dr)
+#                else:
+#                    opts.visited.add(d_stat.st_ino)
 
             for fl in files:
                 fl_path = os.path.join(root, fl)
@@ -116,6 +124,7 @@ def add_dir_files(dr, classifier, opts):
         _hidden_entryname_filter(opts, entries)
         for entry in entries:
             entry_path = os.path.join(dr, entry)
+            # _add_file ignores dir paths.
             _add_file(entry_path, classifier, opts)
 
 def _add_file(fl_path, classifier, opts):
@@ -134,6 +143,14 @@ def _add_file(fl_path, classifier, opts):
 # -------------------------------
 # "Filter" helpers for the above
 #--------------------------------
+
+def _hidden_entryname_filter_mod(opts, dirs):
+    if opts.hidden:
+        return
+    new_dirs = [dr for dr in dirs]
+    for entry in new_dirs:
+        if entry[0][0] == '.':
+            entries.remove(entry)
 
 def _hidden_entryname_filter(opts, *entryname_arrays):
     if opts.hidden:
