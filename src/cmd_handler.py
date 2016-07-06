@@ -55,6 +55,7 @@ def main():
     if (not paths):
         paths = [os.getcwd()]
     classifier = File_Classifier(opts.hash_alg)
+    opts.visited = set()
     add_files(paths, classifier, opts)
     print_result(classifier, opts)
 
@@ -74,6 +75,9 @@ def add_files(paths, classifier, opts):
         if stat.S_ISLNK(p_stat.st_mode):
             continue
         if stat.S_ISDIR(p_stat.st_mode):
+            if p_stat.st_ino in opts.visited:
+                continue
+            opts.visited.add(p_stat.st_ino)
             add_dir_files(path, classifier, opts)
         if stat.S_ISREG(p_stat.st_mode):
             classifier.insert(path, p_stat.st_size)
@@ -82,9 +86,22 @@ def add_dir_files(dr, classifier, opts):
     if opts.recurse:
         for root,dirs,files in os.walk(dr):
             # os.walk avoids symlinks
-            all_dirs = [dr for dr in dirs]
-            
             _hidden_entryname_filter(opts, files, dirs)
+            
+            all_dirs = [dr for dr in dirs]
+            for dr in all_dirs:
+                try:
+                    d_stat = os.lstat(os.path.join(root, dr))
+                except OSError as e:
+                    try: opts.err_msgr(e)
+                    except Exception: pass
+                    dirs.remove(dr)
+                    continue
+                if d_stat.st_ino in opts.visited:
+                    dirs.remove(dr)
+                else:
+                    opts.visited.add(d_stat.st_ino)
+
             for fl in files:
                 fl_path = os.path.join(root, fl)
                 _add_file(fl_path, classifier, opts)
