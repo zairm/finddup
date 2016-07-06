@@ -38,6 +38,7 @@ class File_Classifier:
             groups[size] = [group]
             return
 
+        if self._in_group(groups, fpath, size): return
         while (cur_idx < len(groups)):
             try:
                 group = groups[cur_idx]
@@ -65,3 +66,9 @@ class File_Classifier:
             for group in sub_groups:
                 yield group
 
+    @staticmethod
+    def _in_group(groups, fpath, size):
+        for group in groups:
+            if fpath in group:
+                return True
+        return False
