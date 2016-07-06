@@ -1,7 +1,7 @@
 # finddup
 Python utility to find duplicate regular files
 
-Written for python3
+Written for python3.5 (??? Make python3.5 optional)
 
 
 ## Usage
